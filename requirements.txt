@@ -12,7 +12,10 @@ numpy==1.26.4
 scipy==1.17.1
 
 # Preprocessing
-scikit-learn==1.9.0
+# Versi dipatok ke 1.5.2 — batas atas yang teruji untuk autolog MLflow 2.19.0
+# yang dipakai pada kriteria berikutnya. Menjaga versi tetap sama di seluruh
+# kriteria agar conda.yaml dan image Docker konsisten.
+scikit-learn==1.5.2
 
 # Visualisasi (dipakai pada tahap EDA di notebook)
 matplotlib==3.11.1
