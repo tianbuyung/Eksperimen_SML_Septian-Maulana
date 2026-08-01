@@ -1,0 +1,24 @@
+# Kriteria 1 — Eksperimen & otomatisasi preprocessing
+# Environment: Python 3.12.7 (sesuai anjuran kelas MSML Dicoding)
+
+# Pengumpulan data mentah
+yfinance==1.5.2
+requests==2.34.2
+lxml==6.1.1
+
+# Manipulasi data & komputasi numerik
+pandas==2.3.3
+numpy==1.26.4
+scipy==1.17.1
+
+# Preprocessing
+scikit-learn==1.9.0
+
+# Visualisasi (dipakai pada tahap EDA di notebook)
+matplotlib==3.11.1
+seaborn==0.13.2
+
+# Menjalankan notebook secara non-interaktif
+ipykernel==7.3.0
+nbformat==5.10.4
+nbconvert==7.17.1

@@ -1,0 +1,26 @@
+# Environment
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Sistem operasi
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# CATATAN: idx_liquidity_raw/ dan preprocessing/idx_liquidity_preprocessing/
+# TIDAK diabaikan. Keduanya sengaja di-commit agar notebook dapat direproduksi
+# tanpa mengunduh ulang dari sumber, dan agar reviewer dapat memeriksa langsung
+# dataset mentah maupun hasil olahannya.

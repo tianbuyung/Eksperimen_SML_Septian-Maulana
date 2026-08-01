@@ -1,0 +1,156 @@
+name: Preprocessing Dataset Likuiditas IDX
+
+# Pemicu workflow:
+#   push               — setiap perubahan pada kode preprocessing atau data mentah
+#   workflow_dispatch  — dijalankan manual dari tab Actions, dengan opsi
+#                        memperbarui data mentah dari sumbernya
+#   schedule           — penyegaran berkala setiap Senin pukul 00:00 UTC
+on:
+  push:
+    branches: [main]
+    paths:
+      - "preprocessing/automate_Septian-Maulana.py"
+      - "idx_liquidity_raw/**"
+      - "requirements.txt"
+      - ".github/workflows/preprocessing.yml"
+  workflow_dispatch:
+    inputs:
+      refresh_raw:
+        description: "Unduh ulang data mentah dari Yahoo Finance & Wikipedia"
+        type: boolean
+        required: false
+        default: false
+  schedule:
+    - cron: "0 0 * * 1"
+
+# Izin menulis diperlukan agar dataset hasil olahan dapat dikembalikan ke repo
+permissions:
+  contents: write
+
+concurrency:
+  group: preprocessing-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preprocessing:
+    name: Jalankan pipeline preprocessing
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Siapkan Python 3.12.7
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.7"
+          cache: pip
+
+      - name: Pasang dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Langkah opsional. Dimatikan secara bawaan agar workflow tidak bergantung
+      # pada ketersediaan sumber daring; dinyalakan lewat workflow_dispatch atau
+      # saat penyegaran terjadwal mingguan.
+      - name: Perbarui data mentah dari sumber
+        if: ${{ inputs.refresh_raw == true || github.event_name == 'schedule' }}
+        run: python scripts/fetch_raw_data.py
+
+      - name: Jalankan preprocessing otomatis
+        run: |
+          cd preprocessing
+          python automate_Septian-Maulana.py
+
+      # Memastikan Actions benar-benar menghasilkan dataset yang valid, bukan
+      # sekadar berhasil menjalankan skrip tanpa keluaran.
+      - name: Validasi dataset hasil olahan
+        run: |
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          import pandas as pd
+
+          out = Path("preprocessing/idx_liquidity_preprocessing")
+          wajib = [
+              "idx_liquidity_train.csv",
+              "idx_liquidity_test.csv",
+              "idx_liquidity_preprocessed.csv",
+              "metadata_preprocessing.json",
+          ]
+
+          galat = []
+          for nama in wajib:
+              if not (out / nama).exists():
+                  galat.append(f"berkas hilang: {nama}")
+
+          if galat:
+              print("\n".join(galat)); sys.exit(1)
+
+          train = pd.read_csv(out / "idx_liquidity_train.csv")
+          test = pd.read_csv(out / "idx_liquidity_test.csv")
+          meta = json.loads((out / "metadata_preprocessing.json").read_text())
+
+          if len(train) == 0 or len(test) == 0:
+              galat.append("dataset kosong")
+          if train.isna().any().any() or test.isna().any().any():
+              galat.append("masih terdapat nilai kosong setelah preprocessing")
+          if list(train.columns) != list(test.columns):
+              galat.append("kolom data latih dan data uji tidak sama")
+          if set(train["kelas_likuiditas"]) - set(meta["urutan_kelas"]):
+              galat.append("terdapat label di luar daftar kelas yang sah")
+
+          if galat:
+              print("VALIDASI GAGAL:"); print("\n".join(f"  - {g}" for g in galat))
+              sys.exit(1)
+
+          print("VALIDASI BERHASIL")
+          print(f"  data latih : {train.shape}")
+          print(f"  data uji   : {test.shape}")
+          print(f"  fitur      : {len(meta['kolom_fitur_final'])}")
+          print("  sebaran kelas (latih):")
+          for kelas, jml in train["kelas_likuiditas"].value_counts().items():
+              print(f"    {kelas:<14} {jml:>4} ({jml/len(train)*100:5.1f}%)")
+          PY
+
+      - name: Unggah dataset sebagai artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: idx-liquidity-preprocessed-${{ github.run_number }}
+          path: preprocessing/idx_liquidity_preprocessing/
+          retention-days: 90
+          if-no-files-found: error
+
+      # Mengembalikan dataset terbaru ke repository sesuai ketentuan kriteria 1
+      # tingkat Advance. Dilewati pada pull request untuk menghindari commit
+      # ke cabang milik kontributor lain.
+      - name: Commit dataset terbaru ke repository
+        if: github.event_name != 'pull_request'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add preprocessing/idx_liquidity_preprocessing/ idx_liquidity_raw/
+
+          if git diff --staged --quiet; then
+            echo "Tidak ada perubahan pada dataset — commit dilewati."
+          else
+            git commit -m "chore(data): perbarui dataset hasil preprocessing [skip ci]"
+            git push
+            echo "Dataset terbaru berhasil dikembalikan ke repository."
+          fi
+
+      - name: Ringkasan hasil
+        if: always()
+        run: |
+          {
+            echo "### Hasil Preprocessing"
+            echo ""
+            echo "| Item | Nilai |"
+            echo "|---|---|"
+            echo "| Pemicu | \`${{ github.event_name }}\` |"
+            echo "| Data mentah diperbarui | \`${{ inputs.refresh_raw == true || github.event_name == 'schedule' }}\` |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
