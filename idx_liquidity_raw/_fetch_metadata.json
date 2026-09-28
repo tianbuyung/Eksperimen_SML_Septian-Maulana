@@ -1,5 +1,5 @@
 {
-  "diambil_pada_utc": "2026-09-21T00:12:07+00:00",
+  "diambil_pada_utc": "2026-09-28T00:14:02+00:00",
   "jendela_observasi": {
     "mulai": "2024-08-01",
     "selesai": "2026-08-01"
@@ -13,7 +13,7 @@
     "yfinance": "1.5.2"
   },
   "jumlah_emiten_terdaftar": 941,
-  "jumlah_emiten_ada_harga": 885,
-  "jumlah_baris_ohlcv": 423784,
+  "jumlah_emiten_ada_harga": 886,
+  "jumlah_baris_ohlcv": 424263,
   "jumlah_hari_bursa_ihsg": 475
 }
